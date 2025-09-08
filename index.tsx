@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GoogleGenAI, Modality } from '@google/genai';
-
 // --- DOM Element Selectors ---
 const promptInput = document.getElementById('prompt-input') as HTMLTextAreaElement;
 const aspectRatioSelect = document.getElementById('aspect-ratio-select') as HTMLSelectElement;
@@ -31,53 +29,29 @@ const downloadButton = document.getElementById('download-button') as HTMLButtonE
 const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
 
 // --- State Variables ---
-let productPart: any | null = null;
-let posePart: any | null = null;
+let productFile: File | null = null;
+let poseFile: File | null = null;
 
-
-// --- Initialize Gemini ---
-// IMPORTANT: Make sure to set the API_KEY environment variable.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const model = 'gemini-2.5-flash-image-preview';
 
 // --- Helper Functions ---
 
 /**
- * Converts a File object to a GoogleGenAI.Part object.
- * @param file The file to convert.
- * @returns A promise that resolves to the Part object.
- */
-async function fileToGenerativePart(file: File) {
-  const base64EncodedDataPromise = new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.readAsDataURL(file);
-  });
-  return {
-    inlineData: {
-      data: await base64EncodedDataPromise,
-      mimeType: file.type,
-    },
-  };
-}
-
-/**
- * Handles file input changes to display a preview and convert the file.
+ * Handles file input changes to display a preview and store the file.
  * @param input The file input element.
  * @param preview The image element for the preview.
  * @param placeholder The placeholder text element.
- * @param partSetter The function to set the state for the converted Part.
+ * @param fileSetter The function to set the state for the file.
  */
 function handleFileChange(
   input: HTMLInputElement,
   preview: HTMLImageElement,
   placeholder: HTMLParagraphElement,
-  partSetter: (part: any | null) => void
+  fileSetter: (file: File | null) => void
 ) {
   input.addEventListener('change', async () => {
     const file = input.files?.[0];
     if (!file) {
-      partSetter(null);
+      fileSetter(null);
       preview.src = '#';
       preview.style.display = 'none';
       placeholder.style.display = 'block';
@@ -90,8 +64,8 @@ function handleFileChange(
     placeholder.style.display = 'none';
     preview.onload = () => URL.revokeObjectURL(preview.src); // Free memory
 
-    // Convert file to Part
-    partSetter(await fileToGenerativePart(file));
+    // Set the file state
+    fileSetter(file);
   });
 }
 
@@ -177,65 +151,50 @@ function handleDownload() {
 // --- Main Application Logic ---
 
 async function generateImage() {
-  if (!productPart) {
+  if (!productFile) {
     alert('Please upload a product image.');
     return;
   }
   
   const userPrompt = promptInput.value || 'A confident-looking model in a brightly lit studio setting.';
   const selectedAspectRatio = aspectRatioSelect.value;
-
+  
   setLoading(true);
   displayError(''); // Clear previous errors
 
   try {
-    const parts: any[] = [ productPart ];
+    const formData = new FormData();
+    formData.append('productFile', productFile);
+    formData.append('userPrompt', userPrompt);
+    formData.append('selectedAspectRatio', selectedAspectRatio);
 
-    let instructionText = `Generate a photorealistic, high-resolution e-commerce model photograph in a ${selectedAspectRatio} aspect ratio.
-- **INSTRUCTIONS:**
-- The model must be wearing the exact clothing item from the product image.
-- Generate a complete, new model wearing the product.
-- The final image must look like a real photograph for a fashion website.
-- The background should be a clean, minimalist studio setting that complements the product.`;
-    
-    if (posePart) {
-        instructionText += `\n- The generated model MUST perfectly replicate the shooting angle, camera perspective, pose, body angle, and orientation from the pose reference image.`;
-        parts.push(posePart);
+    if (poseFile) {
+      formData.append('poseFile', poseFile);
     }
 
-    instructionText += `\n- **CONTEXT:** ${userPrompt}`;
-
-    parts.unshift({ text: instructionText });
-    
-    const contents = { parts };
-
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: contents,
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
     });
 
-    let generatedImageFound = false;
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            outputImage.src = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-            outputImage.style.display = 'block';
-            outputPlaceholder.style.display = 'none';
-            generatedImageFound = true;
-        } else if (part.text) {
-            outputText.textContent = part.text;
-        }
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
-    if (generatedImageFound) {
+
+    const data = await response.json();
+
+    if (data.image) {
+        outputImage.src = data.image;
+        outputImage.style.display = 'block';
+        outputPlaceholder.style.display = 'none';
         downloadControls.classList.remove('controls-hidden');
         downloadButton.disabled = false;
     } else {
         displayError("The model did not return an image. Please try adjusting your prompt or images.");
+    }
+    
+    if (data.text) {
+        outputText.textContent = data.text;
     }
 
   } catch (error) {
@@ -248,7 +207,7 @@ async function generateImage() {
 
 // --- Event Listeners ---
 
-handleFileChange(productFileInput, productPreview, productPlaceholder, (part) => productPart = part);
-handleFileChange(poseFileInput, posePreview, posePlaceholder, (part) => posePart = part);
+handleFileChange(productFileInput, productPreview, productPlaceholder, (file) => productFile = file);
+handleFileChange(poseFileInput, posePreview, posePlaceholder, (file) => poseFile = file);
 generateButton.addEventListener('click', generateImage);
 downloadButton.addEventListener('click', handleDownload);
