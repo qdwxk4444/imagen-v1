@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Model Image Generator</title>
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.sh/@google/genai@1.0.0"
+        }
+      }
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <header>
+        <h1>E-commerce Model Image Generator</h1>
+    </header>
+    <main class="container">
+        <div class="panel" id="input-panel">
+            <h2>1. Provide Input</h2>
+            <div class="input-group">
+                <label for="prompt-input">Text Description</label>
+                <textarea id="prompt-input" rows="5" placeholder="e.g., A confident-looking female model with blonde hair, in a brightly lit studio setting, wearing the product naturally."></textarea>
+            </div>
+             <div class="input-group">
+                <label for="aspect-ratio-select">Aspect Ratio</label>
+                <select id="aspect-ratio-select">
+                    <option value="16:9" selected>Widescreen (16:9)</option>
+                    <option value="1:1">Square (1:1)</option>
+                    <option value="3:4">Portrait (3:4)</option>
+                    <option value="9:16">Tall Portrait (9:16)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="product-file-input">Product Image</label>
+                <input type="file" id="product-file-input" accept="image/*">
+                <div class="image-preview-container">
+                    <img id="product-preview" class="image-preview" src="#" alt="Product Preview" style="display:none;">
+                    <p id="product-placeholder">Upload an image of the product</p>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="pose-file-input">Pose Reference Image (Optional)</label>
+                <input type="file" id="pose-file-input" accept="image/*">
+                <div class="image-preview-container">
+                    <img id="pose-preview" class="image-preview" src="#" alt="Pose Preview" style="display:none;">
+                    <p id="pose-placeholder">Upload an image for pose reference</p>
+                </div>
+            </div>
+            <button id="generate-button" aria-label="Generate image">Generate Image</button>
+        </div>
+        <div class="panel" id="output-panel">
+            <h2>2. Generated Image</h2>
+            <div id="output-container">
+                <div id="loading-spinner" class="spinner" style="display: none;"></div>
+                <p id="output-placeholder">Your generated image will appear here.</p>
+                <img id="output-image" src="#" alt="Generated e-commerce model image" style="display:none;">
+                <p id="output-text"></p>
+            </div>
+            <div class="download-controls controls-hidden">
+                <div class="input-group">
+                    <label for="format-select">Image Format</label>
+                    <select id="format-select">
+                        <option value="png">PNG</option>
+                        <option value="jpeg">JPG</option>
+                    </select>
+                </div>
+                <button id="download-button" aria-label="Download generated image">Download Image</button>
+            </div>
+        </div>
+    </main>
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
